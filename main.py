@@ -1,6 +1,6 @@
 import os
 import time
-import re  # [新增] 引入正则库，用于多语言文本匹配
+import re
 from playwright.sync_api import sync_playwright, expect
 
 def main():
@@ -9,7 +9,6 @@ def main():
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        # 保持 zh-TW，因为我们的 GitHub Actions 已经装了对应字体
         context = browser.new_context(locale="zh-TW")
         page = context.new_page()
 
@@ -55,7 +54,6 @@ def main():
             print("▶ 开始通过 Discord Token 注入...")
             page.goto("https://discord.com/login", wait_until="domcontentloaded")
             
-            # 使用 iframe + 高频循环注入
             page.evaluate(f'''() => {{
                 const iframe = document.createElement('iframe');
                 iframe.style.display = 'none';
@@ -86,6 +84,7 @@ def main():
             
             page.locator('a.button[href="/login"]').click()
             
+            # 等待进入 Discord 授权页面
             page.wait_for_url("**/oauth2/authorize**", timeout=30000)
             print("▶ 成功进入 Discord 授权页面。")
             time.sleep(3) 
@@ -102,14 +101,10 @@ def main():
                 }''')
                 time.sleep(0.5)
                 
-                # 【核心修改点】: 扩大文本匹配范围，放宽元素类型限制
-                # 寻找任何 button 标签，或者 role="button" 的标签，并且没有 disabled 属性
-                # 过滤条件：文本中包含 授权、授權 或 Authorize (忽略大小写)
                 auth_btn = page.locator('button:not([disabled]), [role="button"]:not([disabled])').filter(
                     has_text=re.compile(r"授权|授權|Authorize", re.IGNORECASE)
                 )
                 
-                # 因为过滤后可能会找到多个(比如嵌套元素)，我们取第一个可见的
                 if auth_btn.count() > 0 and auth_btn.first.is_visible():
                     page.screenshot(path="step4_oauth_ready_to_click.png")
                     auth_btn.first.click()
@@ -121,16 +116,18 @@ def main():
                 page.screenshot(path="step4_oauth_scroll_failed.png")
                 raise Exception("❌ 无法激活授权按钮，可能 UI 已更改或滚动未生效。")
 
-            # 6. 提取最新的 Cookie
+            # 6. 提取最新的 Cookie (已更新：使用方案二)
             print("▶ 等待面板回调与鉴权...")
             try:
-                page.wait_for_url("**/dashboard**", timeout=30000)
-                page.locator('text="Your server"').wait_for(timeout=15000)
+                # 删除了 wait_for_url，直接等待目标页面的标志性元素出现 (放宽到 30s 以等待重定向完成)
+                page.locator('text="Your server"').wait_for(timeout=30000)
                 page.screenshot(path="step6_dashboard_success.png")
+                print("✅ 成功进入面板 Dashboard！")
             except Exception as e:
                 page.screenshot(path="step6_dashboard_failed.png")
                 raise Exception(f"❌ 授权后未能在规定时间内返回 Dashboard: {e}")
             
+            # 抓取并保存 Cookie
             cookies = context.cookies()
             new_sid = next((c["value"] for c in cookies if c["name"] == "connect.sid" and "slimenodes" in c["domain"]), None)
             
