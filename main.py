@@ -1,5 +1,6 @@
 import os
 import time
+import re  # [新增] 引入正则库，用于多语言文本匹配
 from playwright.sync_api import sync_playwright, expect
 
 def main():
@@ -7,9 +8,8 @@ def main():
     saved_cookie = os.environ.get("SLIMENODES_COOKIE")
 
     with sync_playwright() as p:
-        # 在 GitHub Actions 中运行无头模式
         browser = p.chromium.launch(headless=True)
-        # 设置中文环境，配合 GitHub Actions 里新装的中文字体
+        # 保持 zh-TW，因为我们的 GitHub Actions 已经装了对应字体
         context = browser.new_context(locale="zh-TW")
         page = context.new_page()
 
@@ -34,10 +34,7 @@ def main():
             }])
             
             try:
-                # 只要 DOM 加载完就放行，超时放宽到 60s
                 page.goto("https://dash.slimenodes.com/dashboard", timeout=60000, wait_until="domcontentloaded")
-                
-                # 等待页面特征元素，最多等15秒
                 page.locator('text="Your server"').wait_for(timeout=15000)
                 
                 if "dashboard" in page.url:
@@ -58,13 +55,12 @@ def main():
             print("▶ 开始通过 Discord Token 注入...")
             page.goto("https://discord.com/login", wait_until="domcontentloaded")
             
-            # 【终极核心方案】: 使用 iframe + 高频循环注入，对抗 Discord 的清理机制
+            # 使用 iframe + 高频循环注入
             page.evaluate(f'''() => {{
                 const iframe = document.createElement('iframe');
                 iframe.style.display = 'none';
                 document.body.appendChild(iframe);
                 
-                // 每 50ms 疯狂注入一次 Token，持续保护状态
                 const intervalId = setInterval(() => {{
                     iframe.contentWindow.localStorage.setItem('token', '"{discord_token}"');
                 }}, 50);
@@ -72,10 +68,7 @@ def main():
                 window._injectionInterval = intervalId;
             }}''')
             
-            # 让循环注入飞一会 (模拟 setTimeout 2.5秒)
             time.sleep(2.5) 
-            
-            # 刷新页面，让注入的 Token 生效
             page.reload(wait_until="domcontentloaded")
             
             try:
@@ -93,10 +86,9 @@ def main():
             
             page.locator('a.button[href="/login"]').click()
             
-            # 等待跳转到 Discord 授权页
             page.wait_for_url("**/oauth2/authorize**", timeout=30000)
             print("▶ 成功进入 Discord 授权页面。")
-            time.sleep(3) # 给 React 渲染留一点时间
+            time.sleep(3) 
             
             # 5. 处理必须滚动到底部才能点击的授权按钮
             max_attempts = 15
@@ -110,13 +102,17 @@ def main():
                 }''')
                 time.sleep(0.5)
                 
-                auth_btn = page.locator('button[type="button"]:not([disabled])', has_text="授权")
-                if auth_btn.count() == 0:
-                    auth_btn = page.locator('button[type="button"]:not([disabled])', has_text="Authorize")
+                # 【核心修改点】: 扩大文本匹配范围，放宽元素类型限制
+                # 寻找任何 button 标签，或者 role="button" 的标签，并且没有 disabled 属性
+                # 过滤条件：文本中包含 授权、授權 或 Authorize (忽略大小写)
+                auth_btn = page.locator('button:not([disabled]), [role="button"]:not([disabled])').filter(
+                    has_text=re.compile(r"授权|授權|Authorize", re.IGNORECASE)
+                )
                 
-                if auth_btn.count() > 0 and auth_btn.is_visible():
+                # 因为过滤后可能会找到多个(比如嵌套元素)，我们取第一个可见的
+                if auth_btn.count() > 0 and auth_btn.first.is_visible():
                     page.screenshot(path="step4_oauth_ready_to_click.png")
-                    auth_btn.click()
+                    auth_btn.first.click()
                     print("✅ 成功点击授权按钮！")
                     time.sleep(2)
                     page.screenshot(path="step5_oauth_clicked.png")
