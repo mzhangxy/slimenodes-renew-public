@@ -30,7 +30,6 @@ jobs:
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           SLIMENODES_COOKIE: ${{ secrets.SLIMENODES_COOKIE }}
-          # 传入 TG 相关的 Secrets
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
