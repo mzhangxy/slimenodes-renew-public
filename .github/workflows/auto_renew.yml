@@ -1,4 +1,4 @@
-name: SlimeNodes Auto Login & Renew
+name: SlimeNodes Auto Renew
 
 on:
   schedule:
