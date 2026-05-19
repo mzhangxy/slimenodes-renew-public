@@ -1,4 +1,4 @@
-1. 变量：
+1. 变量：/
 DISCORD_TOKEN: F12 开发工具页面 → Network → 选项 Science → Authorization 的值
 SLIMENODES_COOKIE: F12 → 应用 → cookie → Connect_sid 的值
 
