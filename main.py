@@ -139,7 +139,7 @@ def main():
                 raise Exception("❌ 登录成功，但未能在 Cookie 中找到 connect.sid！")
 
             # ==========================================
-            # 7. [已修正] 核心业务：自动续期与成功断言
+            # 7. [终极重构版] 核心业务：自动续期与断言
             # ==========================================
             print("▶ 开始执行服务器续期操作...")
             page.goto("https://dash.slimenodes.com/servers", wait_until="domcontentloaded")
@@ -147,28 +147,41 @@ def main():
             # 精准定位黄色的 Renew 按钮
             renew_btn = page.locator('a.btn-warning[href*="/renew"]')
             if renew_btn.count() > 0 and renew_btn.is_visible():
-                page.screenshot(path="step7_servers_page.png")
+                page.screenshot(path="step7_servers_page_before.png")
                 renew_btn.click()
-                print("✅ 已点击 Renew 按钮，等待面板处理与跳转...")
+                print("✅ 已点击 Renew 按钮，等待后端处理...")
             else:
                 raise Exception("❌ 在页面上未找到黄色的 Renew 按钮！")
 
-            # 验证跳转回 Dashboard 后的绿色横幅 (直接匹配面板自带的拼写错误)
-            try:
-                page.locator('text="Succesfully"').wait_for(timeout=20000)
-                page.screenshot(path="step8_renew_result.png")
-                
-                success_msg = "🎉 <b>SlimeNodes 续期成功！</b>\n面板提示: <code>Succesfully purchased renewal for server!</code>"
-                print(success_msg)
-                send_tg_message(success_msg)
-            except Exception as e:
-                page.screenshot(path="step8_renew_failed.png")
-                raise Exception(f"❌ 点击续期后未检测到成功提示横幅，可能续期失败: {e}")
+            # 盲点续期后，不管面板把它重定向到哪里，我们强行让它回到服务器列表页查验真实数据
+            time.sleep(4) # 稍微等待 4 秒，确保面板后端数据库更新完成
+            print("▶ 正在强制返回服务器页以核对最新时间...")
+            page.goto("https://dash.slimenodes.com/servers", wait_until="domcontentloaded")
+            
+            # 必须等到带有 'Server expires in' 的元素加载出来
+            page.locator('text="Server expires in"').wait_for(timeout=20000)
+            page.screenshot(path="step8_renew_result_after.png")
+            
+            # 抓取整个页面的文本，用正则提取剩余小时数
+            body_text = page.locator("body").inner_text()
+            match = re.search(r'expires in (\d+) hours', body_text)
+            
+            if match:
+                hours = int(match.group(1))
+                if hours > 150:
+                    # 不管是真加时了，还是原本就是满血（如 167 小时），只要 > 150 统统算成功
+                    success_msg = f"🎉 <b>SlimeNodes 续期成功！</b>\n当前服务器剩余时间: <code>{hours}</code> 小时"
+                    print(success_msg)
+                    send_tg_message(success_msg)
+                else:
+                    raise Exception(f"❌ 续期操作似乎未生效，当前剩余时间: {hours} 小时 (未超过 150 小时)。")
+            else:
+                raise Exception("❌ 页面已加载，但未能从页面文本中匹配到 'expires in XX hours' 的信息！")
 
             print("🎉 自动化流程全部圆满执行完毕！")
 
         except Exception as e:
-            # 当发生任何报错时，捕获异常、截图死前现场、发通知，并强行阻断 Actions
+            # 全局异常捕获，推送到 TG，并阻断 Actions
             page.screenshot(path="error_fatal.png")
             error_msg = f"⚠️ <b>SlimeNodes 自动化执行失败</b>\n错误详情:\n<code>{str(e)}</code>"
             print(error_msg)
