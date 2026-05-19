@@ -2,8 +2,9 @@ name: SlimeNodes Auto Login & Renew
 
 on:
   schedule:
+    # 默认每5天的 UTC 00:00 运行一次
     - cron: '0 0 */5 * *'
-  workflow_dispatch:
+  workflow_dispatch: # 允许手动点击运行
 
 jobs:
   run-automation:
@@ -16,6 +17,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+
+      - name: 安装中文字体 (解决截图乱码与点击定位问题)
+        run: sudo apt-get install -y fonts-noto-cjk
 
       - name: 安装 Playwright 及依赖库
         run: |
@@ -33,19 +37,19 @@ jobs:
       - name: 更新 Cookie 到 GitHub Secrets
         if: success()
         env:
+          # 注意：这里需要你之前申请的带 repo 权限的 PAT Token
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           if [ -f "new_cookie.txt" ]; then
             NEW_COOKIE=$(cat new_cookie.txt)
             gh secret set SLIMENODES_COOKIE -b"$NEW_COOKIE"
-            echo "✅ Cookie 已经被成功更新到 GitHub Secrets 中！"
+            echo "✅ 最新的 Cookie 已经被成功更新到 GitHub Secrets 中！"
           else
             echo "▶ 没有生成新的 Cookie（使用的是原有且有效的 Cookie）。"
           fi
 
-      # 新增：上传截图（无论前面步骤成功还是失败都会执行）
       - name: 上传调试截图
-        if: always()
+        if: always() # 无论成功失败，都打包上传截图，方便排查
         uses: actions/upload-artifact@v4
         with:
           name: playwright-debug-screenshots
