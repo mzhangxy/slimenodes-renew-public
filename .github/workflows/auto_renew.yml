@@ -9,8 +9,15 @@ jobs:
   run-automation:
     runs-on: ubuntu-latest
     steps:
-      - name: 检出代码仓库
+      - name: 📥 下载私库脚本
         uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/slimenodes-renew-private
+          token: ${{ secrets.PAT_TOKEN }}
+          path: private
+
+      - name: 📂 移动脚本到工作目录
+        run: mv private/main.py main.py
 
       - name: 配置 Python 环境
         uses: actions/setup-python@v5
