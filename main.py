@@ -9,6 +9,7 @@ def main():
     with sync_playwright() as p:
         # 在 GitHub Actions 中运行无头模式
         browser = p.chromium.launch(headless=True)
+        # 设置中文环境，配合 GitHub Actions 里新装的中文字体
         context = browser.new_context(locale="zh-TW")
         page = context.new_page()
 
@@ -33,7 +34,7 @@ def main():
             }])
             
             try:
-                # [优化点] 只要 DOM 加载完就放行，超时放宽到 60s
+                # 只要 DOM 加载完就放行，超时放宽到 60s
                 page.goto("https://dash.slimenodes.com/dashboard", timeout=60000, wait_until="domcontentloaded")
                 
                 # 等待页面特征元素，最多等15秒
@@ -41,11 +42,11 @@ def main():
                 
                 if "dashboard" in page.url:
                     print("✅ Cookie 依然有效，成功跳过登录流程！")
-                    page.screenshot(path="step1_cookie_success.png") # [截图] Cookie 登录成功
+                    page.screenshot(path="step1_cookie_success.png")
                     cookie_valid = True
             except Exception as e:
-                print(f"⚠️ Cookie 会话恢复失败或页面加载超时: {e}")
-                page.screenshot(path="step1_cookie_failed.png") # [截图] Cookie 登录失败现场
+                print(f"⚠️ Cookie 会话恢复失败或已过期: {e}")
+                page.screenshot(path="step1_cookie_failed.png")
                 print("▶ 准备退回使用 Discord Token 重新获取授权...")
                 context.clear_cookies()
 
@@ -57,15 +58,30 @@ def main():
             print("▶ 开始通过 Discord Token 注入...")
             page.goto("https://discord.com/login", wait_until="domcontentloaded")
             
+            # 【终极核心方案】: 使用 iframe + 高频循环注入，对抗 Discord 的清理机制
             page.evaluate(f'''() => {{
-                window.localStorage.setItem('token', '"{discord_token}"');
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+                
+                // 每 50ms 疯狂注入一次 Token，持续保护状态
+                const intervalId = setInterval(() => {{
+                    iframe.contentWindow.localStorage.setItem('token', '"{discord_token}"');
+                }}, 50);
+                
+                window._injectionInterval = intervalId;
             }}''')
+            
+            # 让循环注入飞一会 (模拟 setTimeout 2.5秒)
+            time.sleep(2.5) 
+            
+            # 刷新页面，让注入的 Token 生效
             page.reload(wait_until="domcontentloaded")
             
             try:
                 page.wait_for_selector('div[class*="app_"]', timeout=15000)
                 print("✅ Discord 账号状态注入成功。")
-                page.screenshot(path="step2_discord_injected.png") # [截图] 确认进入了 Discord
+                page.screenshot(path="step2_discord_injected.png")
             except Exception as e:
                 page.screenshot(path="step2_discord_injection_failed.png")
                 raise Exception(f"❌ Discord Token 注入后未能加载主界面: {e}")
@@ -73,7 +89,7 @@ def main():
             # 4. 前往目标网站发起 OAuth 授权
             print("▶ 前往 SlimeNodes 面板点击登录...")
             page.goto("https://dash.slimenodes.com", wait_until="domcontentloaded")
-            page.screenshot(path="step3_panel_home.png") # [截图] 面板首页准备点击登录
+            page.screenshot(path="step3_panel_home.png")
             
             page.locator('a.button[href="/login"]').click()
             
@@ -99,11 +115,11 @@ def main():
                     auth_btn = page.locator('button[type="button"]:not([disabled])', has_text="Authorize")
                 
                 if auth_btn.count() > 0 and auth_btn.is_visible():
-                    page.screenshot(path="step4_oauth_ready_to_click.png") # [截图] 按钮激活，准备点击
+                    page.screenshot(path="step4_oauth_ready_to_click.png")
                     auth_btn.click()
                     print("✅ 成功点击授权按钮！")
                     time.sleep(2)
-                    page.screenshot(path="step5_oauth_clicked.png") # [截图] 点击后的跳转状态
+                    page.screenshot(path="step5_oauth_clicked.png")
                     break
             else:
                 page.screenshot(path="step4_oauth_scroll_failed.png")
@@ -113,9 +129,8 @@ def main():
             print("▶ 等待面板回调与鉴权...")
             try:
                 page.wait_for_url("**/dashboard**", timeout=30000)
-                # 这里可以等一下特征元素，确认真的进去了
                 page.locator('text="Your server"').wait_for(timeout=15000)
-                page.screenshot(path="step6_dashboard_success.png") # [截图] 成功进入面板后台
+                page.screenshot(path="step6_dashboard_success.png")
             except Exception as e:
                 page.screenshot(path="step6_dashboard_failed.png")
                 raise Exception(f"❌ 授权后未能在规定时间内返回 Dashboard: {e}")
