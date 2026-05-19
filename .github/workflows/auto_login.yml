@@ -1,0 +1,48 @@
+name: SlimeNodes Auto Login & Renew
+
+on:
+  schedule:
+    # 每天或每5天运行一次 (根据你需要续期的频率自己调整)
+    # 此处为 UTC 时间 00:00 运行 (北京时间 08:00)
+    - cron: '0 0 */5 * *'
+  workflow_dispatch: # 允许你在网页端手动点击 "Run workflow" 调试
+
+jobs:
+  run-automation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码仓库
+        uses: actions/checkout@v4
+
+      - name: 配置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 安装 Playwright 及依赖库
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright
+          playwright install chromium
+
+      - name: 运行主逻辑脚本
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          SLIMENODES_COOKIE: ${{ secrets.SLIMENODES_COOKIE }}
+        run: |
+          python main.py
+
+      - name: 更新 Cookie 到 GitHub Secrets
+        # 只有当上一步成功执行，且生成了 new_cookie.txt 时才执行
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }} # 这里必须用你申请的 PAT，不能用默认的 GITHUB_TOKEN
+        run: |
+          if [ -f "new_cookie.txt" ]; then
+            NEW_COOKIE=$(cat new_cookie.txt)
+            # 使用 GitHub 官方 CLI 覆盖更新 Secret
+            gh secret set SLIMENODES_COOKIE -b"$NEW_COOKIE"
+            echo "✅ Cookie 已经被成功更新到 GitHub Secrets 中！"
+          else
+            echo "▶ 没有生成新的 Cookie（使用的是原有且有效的 Cookie）。"
+          fi
