@@ -49,7 +49,8 @@ jobs:
         run: |
           if [ -f "new_cookie.txt" ]; then
             NEW_COOKIE=$(cat new_cookie.txt)
-            gh secret set SLIMENODES_COOKIE -b"$NEW_COOKIE"
+            # 因为前面指定了path：private，缺少 --repo ${{ github.repository }} 参数会找不到目标仓库
+            gh secret set SLIMENODES_COOKIE --repo ${{ github.repository }} -b"$NEW_COOKIE"
             echo "✅ Cookie 更新完毕。"
           fi
 
