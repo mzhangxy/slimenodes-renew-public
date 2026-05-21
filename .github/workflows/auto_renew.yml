@@ -27,6 +27,28 @@ jobs:
       - name: 安装中文字体
         run: sudo apt-get install -y fonts-noto-cjk
 
+      - name: 🚀 安装并启动代理核心
+        env:
+          V2RAY_CONFIG: ${{ secrets.V2RAY_CONFIG }}
+        run: |
+          echo "⬇️ 正在下载 Xray-core..."
+          wget -q https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+          unzip -q Xray-linux-64.zip -d xray_bin
+          cd xray_bin
+
+          echo "📝 正在写入本地节点配置..."
+          echo "$V2RAY_CONFIG" > config.json
+
+          echo "🚀 正在后台启动核心..."
+          nohup ./xray run -c config.json > xray.log 2>&1 &
+          cd ..
+          
+          echo "⏳ 等待代理初始化 (5秒)..."
+          sleep 5
+          
+          echo "🌐 验证本地 10808 端口连通性..."
+          curl -x http://127.0.0.1:10808 -I https://www.google.com/generate_204 || true
+      
       - name: 安装依赖库 (增加 requests)
         run: |
           python -m pip install --upgrade pip
@@ -39,6 +61,7 @@ jobs:
           SLIMENODES_COOKIE: ${{ secrets.SLIMENODES_COOKIE }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          PROXY: http://127.0.0.1:10808
         run: |
           python main.py
 
@@ -49,7 +72,6 @@ jobs:
         run: |
           if [ -f "new_cookie.txt" ]; then
             NEW_COOKIE=$(cat new_cookie.txt)
-            # 因为前面指定了path：private，缺少 --repo ${{ github.repository }} 参数会找不到目标仓库
             gh secret set SLIMENODES_COOKIE --repo ${{ github.repository }} -b"$NEW_COOKIE"
             echo "✅ Cookie 更新完毕。"
           fi
