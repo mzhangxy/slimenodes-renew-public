@@ -39,16 +39,25 @@ jobs:
           echo "📝 正在写入本地节点配置..."
           echo "$V2RAY_CONFIG" > config.json
 
+          echo "🔑 赋予可执行权限..."
+          chmod +x ./xray
+
           echo "🚀 正在后台启动核心..."
           nohup ./xray run -c config.json > xray.log 2>&1 &
-          cd ..
-          
+        
           echo "⏳ 等待代理初始化 (5秒)..."
           sleep 5
           
           echo "🌐 验证本地 10808 端口连通性..."
-          curl -x http://127.0.0.1:10808 -I https://www.google.com/generate_204 || true
-      
+          if ! curl -x http://127.0.0.1:10808 -s -I https://www.google.com/generate_204; then
+            echo "❌ 代理启动失败或无法连接外网！输出 Xray 日志："
+            cat xray.log
+            exit 1 # 强制中断 Workflow，防止白跑
+          else
+            echo "✅ 代理连通性测试通过！"
+          fi
+          cd ..
+          
       - name: 安装依赖库 (增加 requests)
         run: |
           python -m pip install --upgrade pip
