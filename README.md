@@ -144,7 +144,7 @@
       "settings": {
         "vnext": [
           {
-            "address": "你的节点IP或域名",
+            "address": "你的优选节点IP或域名",
             "port": 443,
             "users": [
               {
