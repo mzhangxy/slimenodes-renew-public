@@ -24,9 +24,6 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: 安装中文字体
-        run: sudo apt-get install -y fonts-noto-cjk
-
       - name: 🚀 安装并启动代理核心
         env:
           V2RAY_CONFIG: ${{ secrets.V2RAY_CONFIG }}
