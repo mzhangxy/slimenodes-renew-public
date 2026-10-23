@@ -1,4 +1,4 @@
-name: SlimeNodes Auto Renew
+name: SlimeNodes Auto Credits
 
 on:
   schedule:
@@ -71,6 +71,8 @@ jobs:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           PROXY: http://127.0.0.1:10808
+          CREDITS_MAX_ROUNDS: ${{ vars.CREDITS_MAX_ROUNDS || '3' }}
+          CREDITS_ROUND_INTERVAL: ${{ vars.CREDITS_ROUND_INTERVAL || '10' }}
         run: |
           python main.py
 
