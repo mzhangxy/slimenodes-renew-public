@@ -4,6 +4,7 @@
 * 提取 DISCORD_TOKEN 时，不要退出 DISCORD , 而是直接关闭浏览器
 * CREDITS_MAX_ROUNDS: 每次运行最大收取 Credits 轮数，默认 3（在仓库 Settings → Secrets and variables → Actions → Variables 里配置）
 * CREDITS_ROUND_INTERVAL: 每轮收取之间的等待秒数，默认 10（配置方式同上）
+* CREDITS_REDEEM_DELAY_MIN / CREDITS_REDEEM_DELAY_MAX: 生成链接后到收取的随机等待区间（秒），默认 150~200，服务端校验时间窗不可过快（配置方式同上）
 * 本工作流自动从私库拉取 main.py 并运行，脚本主体与密钥说明见私库 README
 # V2RAY_CONFIG JSON 模板
 ## VMess (WS + TLS) 模板
