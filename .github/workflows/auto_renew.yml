@@ -1,0 +1,94 @@
+name: SlimeNodes Auto Renew
+
+on:
+  schedule:
+    - cron: '0 0 */6 * *'
+  workflow_dispatch:
+
+jobs:
+  run-automation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 下载私库脚本
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/slimenodes-renew-private
+          token: ${{ secrets.PAT_TOKEN }}
+          path: private
+
+      - name: 📂 移动脚本到工作目录
+        run: mv private/main.py main.py
+
+      - name: 配置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 安装中文字体
+        run: sudo apt-get install -y fonts-noto-cjk
+
+      - name: 🚀 安装并启动代理核心
+        env:
+          V2RAY_CONFIG: ${{ secrets.V2RAY_CONFIG }}
+        run: |
+          echo "⬇️ 正在下载 Xray-core..."
+          wget -q https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+          unzip -q Xray-linux-64.zip -d xray_bin
+          cd xray_bin
+
+          echo "📝 正在写入本地节点配置..."
+          echo "$V2RAY_CONFIG" > config.json
+
+          echo "🔑 赋予可执行权限..."
+          chmod +x ./xray
+
+          echo "🚀 正在后台启动核心..."
+          nohup ./xray run -c config.json > xray.log 2>&1 &
+        
+          echo "⏳ 等待代理初始化 (5秒)..."
+          sleep 5
+          
+          echo "🌐 验证本地 10808 端口连通性..."
+          if ! curl -x http://127.0.0.1:10808 -s -I https://www.google.com/generate_204; then
+            echo "❌ 代理启动失败或无法连接外网！输出 Xray 日志："
+            cat xray.log
+            exit 1 # 强制中断 Workflow，防止白跑
+          else
+            echo "✅ 代理连通性测试通过！"
+          fi
+          cd ..
+          
+      - name: 安装依赖库 (增加 requests)
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright requests
+          playwright install chromium
+
+      - name: 运行主逻辑脚本
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          SLIMENODES_COOKIE: ${{ secrets.SLIMENODES_COOKIE }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          PROXY: http://127.0.0.1:10808
+        run: |
+          python main.py
+
+      - name: 更新 Cookie 到 GitHub Secrets
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          if [ -f "new_cookie.txt" ]; then
+            NEW_COOKIE=$(cat new_cookie.txt)
+            gh secret set SLIMENODES_COOKIE --repo ${{ github.repository }} -b"$NEW_COOKIE"
+            echo "✅ Cookie 更新完毕。"
+          fi
+
+      - name: 上传调试截图
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-debug-screenshots
+          path: '*.png'
+          retention-days: 1
