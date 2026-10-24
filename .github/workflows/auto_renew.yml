@@ -70,7 +70,7 @@ jobs:
           PROXY: http://127.0.0.1:10808
           CREDITS_MAX_ROUNDS: ${{ vars.CREDITS_MAX_ROUNDS || '3' }}
           CREDITS_ROUND_INTERVAL: ${{ vars.CREDITS_ROUND_INTERVAL || '3' }}
-          CREDITS_REDEEM_DELAY_MIN: ${{ vars.CREDITS_REDEEM_DELAY_MIN || '10' }}
+          CREDITS_REDEEM_DELAY_MIN: ${{ vars.CREDITS_REDEEM_DELAY_MIN || '12' }}
           CREDITS_REDEEM_DELAY_MAX: ${{ vars.CREDITS_REDEEM_DELAY_MAX || '15' }}
         run: |
           python main.py
