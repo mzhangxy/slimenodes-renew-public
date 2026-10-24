@@ -1,8 +1,6 @@
 name: SlimeNodes Auto Credits
 
 on:
-  schedule:
-    - cron: '0 0 */6 * *'
   workflow_dispatch:
 
 jobs:
@@ -17,7 +15,7 @@ jobs:
           path: private
 
       - name: 📂 移动脚本到工作目录
-        run: mv private/main.py main.py
+        run: mv private/coin.py coin.py
 
       - name: 配置 Python 环境
         uses: actions/setup-python@v5
@@ -73,7 +71,7 @@ jobs:
           CREDITS_REDEEM_DELAY_MIN: ${{ vars.CREDITS_REDEEM_DELAY_MIN || '15' }}
           CREDITS_REDEEM_DELAY_MAX: ${{ vars.CREDITS_REDEEM_DELAY_MAX || '18' }}
         run: |
-          python main.py
+          python coin.py
 
       - name: 更新 Cookie 到 GitHub Secrets
         if: success()
