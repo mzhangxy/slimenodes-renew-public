@@ -66,7 +66,7 @@ jobs:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           PROXY: http://127.0.0.1:10808
-          CREDITS_MAX_ROUNDS: ${{ vars.CREDITS_MAX_ROUNDS || '10' }}
+          CREDITS_MAX_ROUNDS: ${{ vars.CREDITS_MAX_ROUNDS || '40' }}
           CREDITS_ROUND_INTERVAL: ${{ vars.CREDITS_ROUND_INTERVAL || '3' }}
           CREDITS_REDEEM_DELAY_MIN: ${{ vars.CREDITS_REDEEM_DELAY_MIN || '15' }}
           CREDITS_REDEEM_DELAY_MAX: ${{ vars.CREDITS_REDEEM_DELAY_MAX || '18' }}
